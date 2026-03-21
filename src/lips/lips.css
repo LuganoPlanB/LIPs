@@ -3,6 +3,10 @@
   gap: 24px;
 }
 
+.lips-browser--reader {
+  gap: 18px;
+}
+
 .lips-browser__controls {
   display: grid;
   gap: 16px;
@@ -77,6 +81,18 @@
   max-width: 72ch;
 }
 
+.lips-browser__document-header {
+  display: grid;
+  gap: 10px;
+  margin-bottom: 26px;
+  padding-bottom: 18px;
+  border-bottom: var(--planb-border-soft);
+}
+
+.lips-browser__document-header h2 {
+  margin-bottom: 0;
+}
+
 .lips-browser__document pre {
   overflow-x: auto;
   padding: 18px;
@@ -104,5 +120,57 @@
 @media (max-width: 720px) {
   .lips-browser__controls {
     grid-template-columns: 1fr;
+  }
+}
+
+@media print {
+  :root {
+    --planb-color-canvas: #ffffff;
+    --planb-color-panel: #ffffff;
+    --planb-color-text: #111111;
+    --planb-color-text-soft: #444444;
+    --planb-border-soft: 1px solid #d0d0d0;
+  }
+
+  body {
+    background: #ffffff;
+    color: #111111;
+  }
+
+  .planb-hero,
+  .lips-browser__controls,
+  .lips-browser__links,
+  .lips-browser__meta {
+    display: none !important;
+  }
+
+  .planb-main,
+  .planb-container {
+    width: auto;
+    margin: 0;
+    padding: 0;
+  }
+
+  .planb-panel {
+    margin: 0;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+    background: transparent;
+  }
+
+  .lips-browser__document {
+    max-width: none;
+  }
+
+  .lips-browser__document a {
+    color: inherit;
+    text-decoration: underline;
+  }
+
+  .lips-browser__document pre {
+    background: #f3f3f3;
+    border: 1px solid #d0d0d0;
   }
 }
