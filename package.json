@@ -1,0 +1,36 @@
+{
+  "name": "lugano-lips",
+  "version": "1.0.0",
+  "description": "\u001c\u001c\u001cLugano Improvement Proposals",
+  "keywords": [
+    "civic",
+    "improvement",
+    "smartcity"
+  ],
+  "homepage": "https://github.com/LuganoPlanB/LIPs#readme",
+  "bugs": {
+    "url": "https://github.com/LuganoPlanB/LIPs/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/LuganoPlanB/LIPs.git"
+  },
+  "license": "GPL-3.0",
+  "author": "Jaromil",
+  "type": "commonjs",
+  "main": "src/main.js",
+  "directories": {
+    "test": "tests"
+  },
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "lugano-planb-vite-theme": "file:src/theme"
+  },
+  "devDependencies": {
+    "vite": "^8.0.1"
+  }
+}
