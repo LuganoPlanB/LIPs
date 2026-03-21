@@ -19,3 +19,13 @@ Run `python3 scripts/liplint.py lip-*.md` to check wrapping.
 Run `python3 scripts/liplint.py --write lip-*.md` to rewrite plain
 paragraphs to 72 columns while preserving markdown lists and fenced
 code blocks.
+
+## Rendering
+
+This repo needs [lugano-planb-vite-theme](https://github.com/LuganoPlanB/vite-theme) in `src/theme`.
+
+Then:
+```
+npm run dev
+npm run build
+```
