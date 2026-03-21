@@ -9,6 +9,7 @@ import {
 } from "./lips/domain.mjs";
 import { renderMarkdown } from "./lips/markdown.mjs";
 
+const LANGUAGE_STORAGE_KEY = "lugano-lips.language";
 const app = document.querySelector("#app");
 const lipModules = import.meta.glob("../lip-*.md", {
   query: "?raw",
@@ -50,13 +51,14 @@ async function render() {
   const selection = resolveSelection(
     library,
     currentUrl().searchParams.get("lip"),
-    currentUrl().searchParams.get("lang"),
+    currentUrl().searchParams.get("lang") ?? readPreferredLanguage(),
   );
 
   if (!selection.lip) {
     return;
   }
 
+  persistPreferredLanguage(selection.language);
   syncUrl(selection.lip.id, selection.language);
   document.documentElement.lang = selection.language;
   document.title = `LIP ${selection.lip.id} (${selection.language.toUpperCase()})`;
@@ -209,13 +211,30 @@ function currentUrl() {
 }
 
 /**
- * Builds a stable href for browser or reader view.
+ * Reads the last chosen language from local storage.
  *
- * @param {string} lipId
- * @param {string} language
- * @param {string | null} view
- * @returns {string}
+ * @returns {string | null}
  */
+function readPreferredLanguage() {
+  try {
+    return window.localStorage.getItem(LANGUAGE_STORAGE_KEY);
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Persists the chosen language for future visits.
+ *
+ * @param {string} language
+ */
+function persistPreferredLanguage(language) {
+  try {
+    window.localStorage.setItem(LANGUAGE_STORAGE_KEY, language);
+  } catch {
+    // Ignore storage failures and keep the app functional.
+  }
+}
 
 /**
  * Renders a previous or next link for the current language when available.
