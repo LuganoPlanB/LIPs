@@ -46,6 +46,7 @@ window.addEventListener("popstate", render);
  * Renders the LIP browser for the current URL state.
  */
 async function render() {
+  const view = currentUrl().searchParams.get("view");
   const selection = resolveSelection(
     library,
     currentUrl().searchParams.get("lip"),
@@ -58,12 +59,15 @@ async function render() {
 
   syncUrl(selection.lip.id, selection.language);
   document.documentElement.lang = selection.language;
+  document.title = `LIP ${selection.lip.id} (${selection.language.toUpperCase()})`;
 
   const markdown = await loadLipMarkdown(selection.lip, selection.language);
   const neighbors = findNeighbors(library, selection.lip);
+  const readerMode = view === "reader";
 
   content.innerHTML = `
-    <section class="planb-panel lips-browser">
+    <section class="planb-panel lips-browser ${readerMode ? "lips-browser--reader" : ""}">
+      ${readerMode ? "" : `
       <div class="lips-browser__controls">
         <label class="lips-browser__label">
           <span>Proposal</span>
@@ -99,14 +103,22 @@ async function render() {
         ${renderNeighborLink("Previous", neighbors.previous, selection.language)}
         ${renderNeighborLink("Next", neighbors.next, selection.language)}
       </div>
+      `}
 
       <article class="lips-browser__document">
+        <header class="lips-browser__document-header">
+          <p class="lips-browser__meta">
+            <span>LIP ${selection.lip.id}</span>
+            <span>${selection.language.toUpperCase()}</span>
+          </p>
+          <h2>${selection.lip.title}</h2>
+        </header>
         ${renderMarkdown(markdown)}
       </article>
     </section>
   `;
 
-  wireControls(selection);
+  wireControls(selection, readerMode);
 }
 
 /**
@@ -125,22 +137,26 @@ function loadLipMarkdown(lip, language) {
  * Attaches events to proposal and language controls.
  *
  * @param {{lip: {id: string, files: Record<string, string>}, language: string}} selection
+ * @param {boolean} readerMode
  */
-function wireControls(selection) {
-  content.querySelector("[data-role='lip-select']").addEventListener("change", (event) => {
-    navigate(event.target.value, selection.language);
-  });
+function wireControls(selection, readerMode) {
+  const lipSelect = content.querySelector("[data-role='lip-select']");
+  if (lipSelect) {
+    lipSelect.addEventListener("change", (event) => {
+      navigate(event.target.value, selection.language, readerMode ? "reader" : null);
+    });
+  }
 
   for (const button of content.querySelectorAll("[data-role='language']")) {
     button.addEventListener("click", () => {
-      navigate(selection.lip.id, button.dataset.language);
+      navigate(selection.lip.id, button.dataset.language, readerMode ? "reader" : null);
     });
   }
 
   for (const link of content.querySelectorAll("[data-role='neighbor']")) {
     link.addEventListener("click", (event) => {
       event.preventDefault();
-      navigate(link.dataset.lip, link.dataset.lang);
+      navigate(link.dataset.lip, link.dataset.lang, readerMode ? "reader" : null);
     });
   }
 }
@@ -150,11 +166,17 @@ function wireControls(selection) {
  *
  * @param {string} lipId
  * @param {string} language
+ * @param {string | null} view
  */
-function navigate(lipId, language) {
+function navigate(lipId, language, view = null) {
   const url = currentUrl();
   url.searchParams.set("lip", lipId);
   url.searchParams.set("lang", language);
+  if (view) {
+    url.searchParams.set("view", view);
+  } else {
+    url.searchParams.delete("view");
+  }
   window.history.pushState({}, "", url);
   render();
 }
@@ -185,6 +207,15 @@ function syncUrl(lipId, language) {
 function currentUrl() {
   return new URL(window.location.href);
 }
+
+/**
+ * Builds a stable href for browser or reader view.
+ *
+ * @param {string} lipId
+ * @param {string} language
+ * @param {string | null} view
+ * @returns {string}
+ */
 
 /**
  * Renders a previous or next link for the current language when available.
