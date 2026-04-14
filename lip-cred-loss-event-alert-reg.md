@@ -1,9 +1,11 @@
-LIP: TBD Title: Credential Loss Event Alert Registry
+# Credential Loss Event Alert Registry (CLEAR)
+```
 Author: Jaromil
 Discussions-To: https://github.com/LuganoPlanB/lugano-lips/issues
 Status: Draft
 Type: Standards Track
 Created: 2026-04-14
+```
 
 # Abstract
 
