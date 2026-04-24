@@ -1,6 +1,6 @@
 # Credential Loss Event Alert Registry (CLEAR)
 ```
-Author: Jaromil
+Author: Jaromil, Bregy
 Discussions-To: https://github.com/LuganoPlanB/lugano-lips/issues
 Status: Draft
 Type: Standards Track
@@ -78,8 +78,8 @@ binding approved by governance.
 
 ## Data minimization
 
-The CLEAR service must not store full police reports. It stores only
-the minimum fields required to support the query:
+The CLEAR service must not store full police reports. It stores only the
+minimum fields required to support the query:
 
 * a subject reference derived from the person's legal identity
 * a device reference derived from the compromised authentication device
@@ -143,6 +143,33 @@ One conforming design is:
 
 Alternative designs may be used if they preserve the same privacy,
 auditability, and anti-enumeration guarantees.
+
+## Root notarization
+
+Each update to the active set should produce a new Merkle root and an
+associated signed checkpoint. The CLEAR operator should periodically
+notarize these checkpoints on a distributed ledger, such as SwissLedger,
+or another governance-approved public-interest ledger.
+
+The notarized checkpoint should contain only non-personal integrity
+material:
+
+* the active-set root
+* the checkpoint timestamp
+* a sequence number or epoch identifier
+* the operator signature or key identifier
+* optional policy metadata, such as the retention window in force
+
+No police report, subject identifier, device identifier, commitment
+preimage, query record, or relying-party activity should be written to
+the ledger.
+
+The purpose of notarization is to make the history of active-set changes
+externally verifiable without disclosing the contents of the set.
+Auditors, relying parties, and oversight authorities can later verify
+that a proof was checked against a root that existed at a specific time,
+that roots were not silently rewritten after the fact, and that gaps or
+unexpected forks in the checkpoint sequence are visible.
 
 ## Query authorization
 
@@ -209,6 +236,21 @@ device identifiers, and authentication activity. Commitments and
 Merkle-based proofs let the service answer the narrow compromise-check
 question while reducing disclosure of the underlying records.
 
+Notarizing Merkle roots on a distributed ledger strengthens the
+integrity of this design without expanding the data shared by the
+service. The ledger does not become a registry of loss events. It acts
+as an independent timestamping and ordering layer for public
+checkpoints. This supports later verification of the history of changes,
+detects attempts to rewrite or omit active-set states, and reduces
+dependence on the CLEAR operator as the only source of audit truth.
+
+This is especially relevant for a civic trust service. Authentication
+decisions may be disputed after an account takeover, failed recovery, or
+operator error. A notarized root history gives auditors a stable basis
+to verify whether the service state used at the time was consistent with
+the published checkpoint sequence, while still preserving the privacy of
+citizens and relying parties.
+
 Alternatives considered:
 
 * Direct police-to-platform data sharing.
@@ -221,6 +263,10 @@ Alternatives considered:
 * User-managed self-report only.
   Helpful but weaker. Fraud prevention benefits from attested reports
   and independent timestamps.
+* Local audit logs without ledger notarization.
+  Necessary but insufficient on their own. They remain under the
+  control of the service operator and are weaker evidence if historical
+  integrity is later disputed.
 
 # Stakeholder and Impact Analysis
 
@@ -266,6 +312,10 @@ Budget and sustainability impact:
 
 Vendor lock-in should be limited by requiring open specifications,
 portable proofs, and exportable audit data.
+
+Ledger use should also avoid vendor lock-in. The checkpoint format
+should be portable so that roots can be verified independently of any
+single ledger implementation or service provider.
 
 # Consultation and Dissent
 
@@ -314,12 +364,14 @@ not yet integrated.
    attestations.
 3. Specify the commitment derivation method, proof system, and response
    format.
-4. Build a pilot ingestion adapter for one reporting authority.
-5. Build the active-set service with automatic expiry and recovery
+4. Specify the Merkle-root checkpoint format and ledger notarization
+   cadence.
+5. Build a pilot ingestion adapter for one reporting authority.
+6. Build the active-set service with automatic expiry and recovery
    handling.
-6. Integrate one authentication endpoint as a relying-party pilot.
-7. Run privacy, security, and operational evaluations.
-8. Publish results and decide whether to standardize, revise, or
+7. Integrate one authentication endpoint as a relying-party pilot.
+8. Run privacy, security, and operational evaluations.
+9. Publish results and decide whether to standardize, revise, or
    reject.
 
 Acceptance criteria for the pilot should include:
@@ -328,6 +380,8 @@ Acceptance criteria for the pilot should include:
 * no disclosure of raw police-report content to relying parties
 * successful expiry of records after the retention period
 * auditable authorization and rate limiting
+* published Merkle-root checkpoints that can be independently verified
+  against the selected ledger
 * evidence that the signal improves fraud controls without excessive
   false positives
 
@@ -342,6 +396,7 @@ Governance responsibilities should include:
 * approving eligible device claim types
 * approving retention periods
 * approving authorized querying operators
+* approving the checkpoint cadence and ledger used for notarization
 * reviewing audit logs and abuse reports
 * triggering suspension or rollback if misuse or excessive error rates
   are detected
