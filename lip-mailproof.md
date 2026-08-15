@@ -1,25 +1,21 @@
-# Attestazione e Verifica delle Comunicazioni Email della Città di Lugano
+# Attestazione e Verifica delle Comunicazioni Email
 
 ```
-Author: Città di Lugano
+Author: Robert Bregy
 Discussions-To: https://github.com/LuganoPlanB/lugano-lips/issues
 Status: Draft
 Type: Standards Track
-Created: 2026-08-14
+Created: 2026-07-31
 ```
 
 # Abstract
 
-Questa proposta definisce un servizio istituzionale per attestare
-automaticamente le comunicazioni email ufficiali della Città di Lugano e
-permettere al destinatario di verificarle inoltrandole a un indirizzo
-pubblico indipendente dalla comunicazione sospetta.
-
-Prima dell'invio, un Trust Publisher acquisisce una copia immutabile del
-messaggio, assegna un Trust-ID non prevedibile, calcola fingerprint del
-contenuto e firma un'attestazione. Il servizio di verifica recupera
-l'attestazione dalla fonte autoritativa, confronta gli elementi ricevuti
-e restituisce un referto comprensibile con uno stato non binario.
+Questa proposta definisce un servizio per verificare l'autenticita'
+delle email che provengono dalla Città di Lugano (`@lugano.ch`)
+attivando un indirizzo di verifica a cui inoltrarle in modo semplice e
+senza abbandonare il programma di posta (funzione `Forward`). Tale
+servizio inviera' poi una email di risposta con il responso della
+verifica.
 
 Il servizio integra, ma non sostituisce, SPF, DKIM, DMARC,
 Authentication-Results, ARC e i controlli di sicurezza del trasporto.
@@ -27,11 +23,21 @@ Esso attesta la corrispondenza con una comunicazione emessa dai sistemi
 ufficiali; non certifica la verità sostanziale del contenuto né la
 legittimità amministrativa di un atto.
 
+Il servizio potrebbe in futuro estendersi ad altri domini
+email. Inoltre la Citta' di Lugano potrebbe facilitare la verifica
+dotandosi di un meccanismo di attestazione digitale di tutte le email
+inviate (backend) ed il servizio mailproof potra recuperare take
+attestazione dalla fonte autoritativa e confrontare gli elementi
+ricevuti.
+
 # Motivazione
 
-I cittadini ricevono comunicazioni che possono mostrare un nome o un
-dominio familiare senza essere state emesse dalla Città. I controlli
-email ordinari risolvono parti diverse del problema:
+I cittadini ricevono comunicazioni che possono mostrare la citta' di
+Lugano come mittente (falsificando il campo `From:` visibile e tutti
+gli elementi grafici) fingendo di inviare mail emesse dalla
+città. Questa vulnerabilita' e' intrinseca al sistema di email, non e'
+propria del metodo usato dalla nostra citta'. Vi sono tuttavia
+controlli email ordinari per risolvere parti diverse del problema:
 
 * SPF autorizza un server a usare un dominio nel percorso SMTP
 * DKIM protegge i campi firmati e li associa a un dominio
@@ -39,19 +45,18 @@ email ordinari risolvono parti diverse del problema:
 * ARC conserva valutazioni di autenticazione attraverso alcuni intermediari
 * TLS, MTA-STS, TLS-RPT e DANE proteggono o rendono verificabile il trasporto
 
-Nessuno di questi controlli dimostra da solo che una specifica
-comunicazione, con determinati testo, link e allegati, sia stata
-autorizzata ed emessa dalla Città. Inoltre, un account ufficiale
-compromesso può superare SPF, DKIM e DMARC, mentre un inoltro ordinario
-può riscrivere header, corpo, HTML, MIME o allegati e rendere non
-ripetibile la verifica originale.
+I controlli piu' diffusi ed effettivi fra questi sono gia' adottati
+dalla citta' di Lugano, ma non sono sempre verificati dai programmi di
+ricezione. Inoltre nessuno di questi controlli dimostra da solo che
+una specifica comunicazione, con determinati testo, link e allegati,
+sia stata autorizzata ed emessa dalla Città. Infine un account
+ufficiale compromesso può superare SPF, DKIM e DMARC, mentre un
+inoltro ordinario può riscrivere header, corpo, HTML, MIME o allegati
+e rendere non ripetibile la verifica originale.
 
-Il cittadino necessita quindi di un canale semplice e indipendente dalla
-comunicazione sospetta. L'esperienza proposta è "inoltra a
-verifica@lugano.ch": l'inoltro attiva la verifica, ma non è considerato
-una copia forense affidabile. La fonte probatoria è l'attestazione
-predisposta lato mittente e conservata dalla fonte autoritativa della
-Città.
+Il cittadino necessita quindi di un canale semplice e indipendente
+dalla comunicazione sospetta. L'esperienza proposta è "inoltra a
+`verifica@lugano.ch`" e l'inoltro attiva la verifica.
 
 # Specifica
 
@@ -65,7 +70,7 @@ Il servizio si applica alle email inviate da sistemi, domini, caselle e
 fornitori SaaS inclusi in una policy di copertura pubblicata dalla
 Città. La policy deve identificare almeno i domini coperti, le identità
 di sistema autorizzate, le versioni dei profili tecnici e le finestre di
-validità.
+validità. Si partira' dal dominio `lugano.ch`.
 
 Per una comunicazione coperta, il servizio deve permettere di
 determinare se gli elementi ricevuti corrispondono all'attestazione
@@ -83,144 +88,62 @@ dimostra:
 * la sicurezza di dispositivi, caselle o azioni successive del destinatario
 
 Documenti, SMS, notifiche e altri oggetti digitali non fanno parte di
-questo LIP. Potranno riutilizzarne il modello solo tramite proposte
-successive.
-
-## Componenti e ruoli
-
-L'architettura deve separare almeno i seguenti componenti:
-
-* il sistema di posta o gateway autorizzato che prepara il messaggio
-* il Trust Publisher che produce e firma l'attestazione
-* l'original store autoritativo, controllato dalla Città
-* il servizio di verifica che riceve gli inoltri e produce i referti
-* il registro di audit append-only e l'eventuale ancoraggio su SwissLedger
-
-Il percorso sincrono di invio non deve dipendere da SwissLedger. La
-pubblicazione di batch, Merkle root e prove deve avvenire in modo
-asincrono e non deve collocare contenuti email o dati personali
-on-chain.
-
-## Emissione e attestazione
-
-Prima delle trasformazioni finali introdotte dal gateway, il sistema di
-posta deve consegnare al Trust Publisher una copia immutabile della
-comunicazione. Il Trust Publisher deve:
-
-1. verificare che sistema, dominio e identità di emissione siano autorizzati
-   dalla policy applicabile
-2. assegnare un Trust-ID casuale ad alta entropia e non prevedibile
-3. calcolare una fingerprint raw e fingerprint granulari per header protetti,
-   testo, HTML canonicalizzato, link e allegati
-4. legare l'attestazione almeno a mittente, destinatario, Trust-ID, finestra
-   temporale, fingerprint, policy e versioni degli algoritmi
-5. firmare l'attestazione con una chiave delegata e identificabile
-6. conservare l'attestazione e l'originale nella fonte autoritativa
-7. inserire il Trust-ID in un header e in un footer informativo
-8. accodare l'attestazione per l'audit e l'eventuale ancoraggio
-
-Il footer e l'header non costituiscono una radice di fiducia: possono
-essere copiati da un attaccante. Ogni decisione deve dipendere
-dall'attestazione firmata recuperata dalla fonte autoritativa e dal
-confronto con il messaggio ricevuto.
-
-L'attestazione deve supportare scadenza e revoca. Una revoca deve
-preservare la traccia di audit senza rendere nuovamente valida la
-comunicazione.
-
-## Canonicalizzazione e fingerprint
-
-Il profilo di canonicalizzazione deve essere ristretto, deterministico e
-versionato. Deve distinguere la canonicalizzazione normativa da
-eventuali fingerprint semantiche e deve specificare il trattamento di:
-
-* folding degli header e terminatori di riga
-* spazi finali e altre differenze non significative
-* quoted-printable, base64 e altre codifiche MIME
-* testo semplice e HTML
-* estrazione e normalizzazione degli URL
-* allegati, inclusi nome, tipo, contenuto e ricodifica
-
-Ogni versione deve avere test vector pubblici. Un implementatore non
-deve affidarsi al solo rendering visivo del messaggio. Se una
-trasformazione non può essere ricondotta in modo affidabile al profilo
-applicabile, il servizio deve restituire `NON VERIFICABILE` e non
-tentare di dedurre una corrispondenza.
+questo LIP, solo i messaggi e-mail.
 
 ## Verifica lato destinatario
 
 L'indirizzo di verifica deve essere pubblicizzato fuori banda sui canali
-ufficiali della Città. Il servizio non deve chiedere al cittadino di
-usare un link o un QR presente nella comunicazione sospetta come radice
-di fiducia.
+ufficiali della Città.
 
 Quando riceve un messaggio inoltrato, il servizio deve:
 
-1. isolare la parte inoltrata e individuare Trust-ID e riferimenti tecnici
-2. gestire in modo deterministico risposte o conversazioni con più Trust-ID
-3. recuperare l'attestazione dalla fonte autoritativa
-4. ricalcolare le fingerprint compatibili con la forma ricevuta
-5. valutare evidenze standard, corrispondenze, differenze e dati mancanti
-6. applicare la policy di copertura, validità e revoca
-7. inviare un referto privo di link necessari, con esito, motivazione e
+1. isolare la parte inoltrata e individuare gli header rilevanti
+2. gestire in modo deterministico risposte o conversazioni
+3. valutare evidenze standard, corrispondenze, differenze e dati mancanti
+4. applicare la policy di copertura, validità e revoca
+5. inviare un referto privo di link necessari, con esito, motivazione e
    istruzioni di sicurezza
 
 Il forward inline è un'interfaccia utente, non una prova forense. Quando
-non conserva dati sufficienti, il referto deve chiedere di inoltrare il
+non conserva dati sufficienti, il referto puo' chiedere di inoltrare il
 messaggio come allegato `message/rfc822` o di trasmettere il file `.eml`
 tramite un canale ufficiale approvato.
+
+### Il servizio non deve chiedere al cittadino di usare un link o un QR presente nella comunicazione sospetta come radice di fiducia.
 
 ## Stati del referto
 
 Il servizio non deve ridurre evidenze eterogenee a un trust score unico.
 Deve restituire almeno uno dei seguenti stati:
 
-* `VERIFICATA`: il Trust-ID è valido e tutti i componenti richiesti
-  dalla policy corrispondono
-* `INCOERENTE`: il Trust-ID è noto, ma contenuto, link, allegati o altri
-  componenti richiesti non corrispondono
-* `NON EMESSA`: gli indicatori sono incompatibili con una comunicazione
-  coperta e non esiste un'attestazione associata
-* `NON VERIFICABILE`: i dati inoltrati sono insufficienti, trasformati o
-  fuori dalla copertura nota; non è possibile concludere
-* `SCADUTA`: l'attestazione esiste, ma la sua finestra di validità è
-  terminata
-* `REVOCATA`: l'attestazione esiste, ma la Città l'ha revocata
+* `VERIFICATA`: Tutti le verifiche richieste passano con successo
+* `NON VERIFICABILE`: I dati inoltrati sono insufficienti, trasformati o
+  fuori dalla copertura nota; non è possibile concludere la verifica
+* `INVALIDA`: L'e-mail non ha passato sufficienti verifiche (elencate) e non e' ritenuta valida, l'utente e' messo in guardia sulla falsificazione
 
-L'assenza di un'attestazione non deve essere presentata automaticamente
-come prova di mancata emissione. Per messaggi legacy, sistemi non ancora
-coperti o dati insufficienti deve prevalere `NON VERIFICABILE`. Un esito
-`VERIFICATA` deve essere emesso solo se tutti i controlli obbligatori
-della policy hanno esito positivo.
+Per messaggi con dati insufficienti prevale `NON VERIFICABILE`. Un
+esito `VERIFICATA` deve essere emesso solo se tutti i controlli
+obbligatori della policy hanno esito positivo.
 
 Ogni referto deve indicare in linguaggio comprensibile che cosa è stato
 verificato, quali dati mancavano e quali azioni prudenti intraprendere.
-Il referto non deve richiedere di fare clic su un link per comprenderne
-o confermarne l'esito.
+
+### Il referto non deve richiedere di fare clic su un link per comprenderne o confermarne l'esito.
 
 ## Baseline della posta elettronica
 
-TEF non sostituisce la sicurezza email ordinaria. Prima del pilota, i
-domini e i sistemi coperti devono avere:
+Mailproof non sostituisce la sicurezza email ordinaria. Prima del
+pilota, i domini e i sistemi coperti devono avere:
 
 * SPF, DKIM e DMARC configurati e monitorati
 * TLS correttamente configurato
 * MTA-STS con TLS-RPT oppure DANE, dove sostenibile
-* produzione e accettazione controllata di `Authentication-Results`
 * ARC trattato solo come evidenza ausiliaria nei flussi indiretti
 
-Gli header `Authentication-Results` ricevuti da fonti non fidate non
-devono essere accettati come prova. S/MIME o OpenPGP possono aggiungere
-protezione end-to-end, ma non sono prerequisiti per l'esperienza di
-verifica via inoltro.
+S/MIME o OpenPGP possono aggiungere protezione end-to-end, ma non sono
+prerequisiti per l'esperienza di verifica via inoltro.
 
 ## Sicurezza, privacy e conservazione
-
-Il Trust Publisher deve proteggere le chiavi tramite HSM o KMS, deleghe
-minime, rotazione, revoca, dual control e audit append-only. La
-compromissione di un account ufficiale deve essere mitigata anche con
-policy sulle identità di sistema, template e domini dei link
-autorizzati.
 
 Il servizio di verifica deve trattare gli inoltri come contenuto non
 fidato. Deve applicare limiti di dimensione e frequenza, code,
@@ -228,24 +151,18 @@ isolamento, antivirus o sandbox per gli allegati e difese contro
 scraping, denial of service, malware e archivi decomprimibili malevoli.
 
 Poiché un inoltro può contenere dati personali o sensibili, la Città
-deve definire prima del pilota una policy di minimizzazione, cifratura,
-conservazione e cancellazione automatica. Gli accessi devono essere
-tracciati e limitati per ruolo. Contenuti, indirizzi, Trust-ID e
-fingerprint riconducibili a persone non devono essere pubblicati
-on-chain.
+deve definire prima del pilota una policy di minimizzazione,
+cifratura, conservazione e cancellazione automatica. Gli accessi
+devono essere tracciati e limitati per ruolo. Contenuti e indirizzi
+riconducibili a persone non devono essere ne' pubblicati ne' salvati.
 
 # Razionale
 
 La progettazione combina standard e componenti maturi invece di
 riscrivere la sicurezza dell'email. Parser MIME/EML, verificatori
 SPF/DKIM/DMARC, ARC, CMS/S/MIME o JWS/COSE, code, database
-transazionali, Merkle tree e sandbox devono essere integrati tramite
-librerie mantenute e sottoposti a test vector.
-
-L'attestazione è separata dal messaggio perché firme e header possono
-essere alterati durante il transito o il forwarding. Il Trust-ID
-facilita la ricerca, ma acquista significato solo tramite il binding
-firmato a destinatario, contenuto, allegati, link e finestra temporale.
+transazionali e sandbox devono essere integrati tramite librerie
+mantenute e sottoposti a test vector.
 
 Sono state considerate le seguenti alternative:
 
@@ -259,8 +176,6 @@ Sono state considerate le seguenti alternative:
   introduce trasformazioni non sostanziali
 * restituire un esito binario o un punteggio nasconde la differenza tra prova
   contraria e insufficienza di dati
-* porre SwissLedger nel percorso sincrono rende la disponibilità dell'email
-  dipendente da un componente che serve all'audit, non alla consegna
 
 # Analisi degli Stakeholder e dell'Impatto
 
